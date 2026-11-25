@@ -7,6 +7,8 @@ import 'package:glucocontrol/reports/pdf_report_service.dart';
 import 'package:glucocontrol/utils/constants.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('Genera un documento PDF válido con datos reales del paciente', () async {
     final profile = PatientProfile(
       fullName: 'Jorge Salazar',
