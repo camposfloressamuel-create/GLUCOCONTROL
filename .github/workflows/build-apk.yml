@@ -1,0 +1,95 @@
+name: Compilar GlucoControl APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Compilar y publicar GlucoControl.apk
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Instalar Flutter estable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Verificar entorno con flutter doctor
+        run: flutter doctor -v
+
+      - name: Asegurar Gradle Wrapper para Android
+        run: |
+          if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Generando Gradle Wrapper 8.10.2..."
+            cd android && gradle wrapper --gradle-version 8.10.2
+          fi
+
+      - name: Configurar firma de producción (si hay GitHub Secrets configurados)
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+            cat <<EOF > android/key.properties
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No se configuraron GitHub Secrets de firma. Se generará una APK release instalable con la firma de desarrollo predeterminada."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Instalar dependencias de Flutter
+        run: flutter pub get
+
+      - name: Analizar código estático
+        run: flutter analyze
+
+      - name: Ejecutar pruebas automatizadas
+        run: flutter test
+
+      - name: Compilar APK de producción (release)
+        run: flutter build apk --release
+
+      - name: Comprobar existencia y renombrar APK a GlucoControl.apk
+        run: |
+          APK_SOURCE="build/app/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_SOURCE" ]; then
+            echo "ERROR: No se encontró el archivo APK esperado en $APK_SOURCE"
+            exit 1
+          fi
+          mkdir -p release-output
+          cp "$APK_SOURCE" release-output/GlucoControl.apk
+          ls -lh release-output/GlucoControl.apk
+
+      - name: Publicar GlucoControl.apk como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlucoControl-APK
+          path: release-output/GlucoControl.apk
+          retention-days: 30
+          if-no-files-found: error
