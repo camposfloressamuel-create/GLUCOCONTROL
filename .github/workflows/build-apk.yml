@@ -25,9 +25,10 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Instalar Flutter estable
+      - name: Instalar Flutter estable (3.35.7)
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.35.7'
           channel: 'stable'
           cache: true
 
@@ -59,8 +60,9 @@ jobs:
       - name: Instalar dependencias de Flutter
         run: flutter pub get
 
-      - name: Asegurar Gradle Wrapper para Android
+      - name: Asegurar Gradle Wrapper y minSdk para Android
         run: |
+          sed -i 's/minSdk = 23/minSdk = 24/g' android/app/build.gradle
           if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
             mkdir -p /tmp/gw && cd /tmp/gw && touch settings.gradle && gradle wrapper --gradle-version 8.10.2
             cp /tmp/gw/gradlew "$GITHUB_WORKSPACE/android/gradlew"
