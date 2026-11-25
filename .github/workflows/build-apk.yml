@@ -34,13 +34,6 @@ jobs:
       - name: Verificar entorno con flutter doctor
         run: flutter doctor -v
 
-      - name: Asegurar Gradle Wrapper para Android
-        run: |
-          if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Generando Gradle Wrapper 8.10.2..."
-            cd android && gradle wrapper --gradle-version 8.10.2
-          fi
-
       - name: Configurar firma de producción (si hay GitHub Secrets configurados)
         id: signing
         env:
@@ -65,6 +58,17 @@ jobs:
 
       - name: Instalar dependencias de Flutter
         run: flutter pub get
+
+      - name: Asegurar Gradle Wrapper para Android
+        run: |
+          FLUTTER_SDK=$(dirname $(dirname $(which flutter)))
+          if [ ! -f android/local.properties ]; then
+            echo "flutter.sdk=$FLUTTER_SDK" > android/local.properties
+          fi
+          if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Generando Gradle Wrapper 8.10.2..."
+            cd android && gradle wrapper --gradle-version 8.10.2
+          fi
 
       - name: Analizar código estático
         run: flutter analyze
