@@ -61,13 +61,12 @@ jobs:
 
       - name: Asegurar Gradle Wrapper para Android
         run: |
-          FLUTTER_SDK=$(dirname $(dirname $(which flutter)))
-          if [ ! -f android/local.properties ]; then
-            echo "flutter.sdk=$FLUTTER_SDK" > android/local.properties
-          fi
           if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Generando Gradle Wrapper 8.10.2..."
-            cd android && gradle wrapper --gradle-version 8.10.2
+            mkdir -p /tmp/gw && cd /tmp/gw && gradle wrapper --gradle-version 8.10.2
+            cp /tmp/gw/gradlew "$GITHUB_WORKSPACE/android/gradlew"
+            chmod +x "$GITHUB_WORKSPACE/android/gradlew"
+            mkdir -p "$GITHUB_WORKSPACE/android/gradle/wrapper"
+            cp /tmp/gw/gradle/wrapper/gradle-wrapper.jar "$GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar"
           fi
 
       - name: Analizar código estático
