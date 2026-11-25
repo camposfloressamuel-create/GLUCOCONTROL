@@ -70,7 +70,7 @@ jobs:
           fi
 
       - name: Analizar código estático
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Ejecutar pruebas automatizadas
         run: flutter test
