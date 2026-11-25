@@ -62,7 +62,7 @@ jobs:
       - name: Asegurar Gradle Wrapper para Android
         run: |
           if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
-            mkdir -p /tmp/gw && cd /tmp/gw && gradle wrapper --gradle-version 8.10.2
+            mkdir -p /tmp/gw && cd /tmp/gw && touch settings.gradle && gradle wrapper --gradle-version 8.10.2
             cp /tmp/gw/gradlew "$GITHUB_WORKSPACE/android/gradlew"
             chmod +x "$GITHUB_WORKSPACE/android/gradlew"
             mkdir -p "$GITHUB_WORKSPACE/android/gradle/wrapper"
