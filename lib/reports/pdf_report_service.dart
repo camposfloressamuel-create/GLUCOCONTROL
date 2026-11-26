@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
@@ -413,18 +414,16 @@ class PdfReportService {
           final plotW = size.x - leftPad - rightPad;
           final plotH = size.y - topPad - bottomPad;
 
-          double mapY(double v) =>
-              bottomPad + ((v - yMin) / ySpan) * plotH;
+          double mapY(double v) => bottomPad + ((v - yMin) / ySpan) * plotH;
 
-          // Banda verde clara del rango objetivo
-          final bandBottom = mapY(minTarget).clamp(bottomPad, bottomPad + plotH);
+          final bandBottom =
+              mapY(minTarget).clamp(bottomPad, bottomPad + plotH);
           final bandTop = mapY(maxTarget).clamp(bottomPad, bottomPad + plotH);
           canvas
             ..setFillColor(_lightGreen)
             ..drawRect(leftPad, bandBottom, plotW, bandTop - bandBottom)
             ..fillPath();
 
-          // Líneas de cuadrícula horizontales
           canvas
             ..setStrokeColor(_borderColor)
             ..setLineWidth(0.5);
@@ -436,7 +435,6 @@ class PdfReportService {
               ..strokePath();
           }
 
-          // Línea de evolución
           final count = values.length;
           double mapX(int index) {
             if (count <= 1) return leftPad + plotW / 2;
@@ -454,7 +452,6 @@ class PdfReportService {
             canvas.strokePath();
           }
 
-          // Puntos coloreados según rango personalizado
           for (int i = 0; i < count; i++) {
             final status = records[i].evaluateAgainst(profile);
             final dotColor = status == GlucoseRangeStatus.inRange
@@ -523,7 +520,27 @@ class PdfReportService {
     );
   }
 
-  /// Guarda el PDF en el directorio local de documentos de la aplicación.
+  /// Abre el selector nativo de Android (SAF) para guardar el PDF directamente
+  /// en Descargas o la carpeta que elija el usuario, visible en "Mis archivos".
+  static Future<String?> savePdfToDevice(Uint8List bytes) async {
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = 'GlucoControl_Informe_$timestamp.pdf';
+
+    final savedPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'Guardar informe PDF',
+      fileName: fileName,
+      type: FileType.custom,
+      allowedExtensions: const ['pdf'],
+      bytes: bytes,
+    );
+
+    if (savedPath != null && savedPath.isNotEmpty) {
+      return savedPath;
+    }
+    return null;
+  }
+
+  /// Respaldo interno en documentos de la app (útil para pruebas o fallback).
   static Future<File> savePdfLocally(Uint8List bytes) async {
     final dir = await getApplicationDocumentsDirectory();
     final reportsDir = Directory(p.join(dir.path, 'informes'));

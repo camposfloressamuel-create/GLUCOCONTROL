@@ -1,7 +1,7 @@
 name: glucocontrol
-description: "GlucoControl - Tu glucosa bajo control, todos los días. Aplicación Android gratuita y sin conexión para el registro y seguimiento de glucosa."
+description: "GlucoControl - Tu glucosa bajo control, todos los días. Aplicación Android gratuita y sin conexión para el registro y seguimiento de glucosa y salud."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

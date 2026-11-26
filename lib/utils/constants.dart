@@ -1,7 +1,7 @@
 class AppConstants {
   static const String appName = 'GlucoControl';
   static const String appSlogan = 'Tu glucosa bajo control, todos los días.';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
 
   // Unidades soportadas
   static const String unitMgDl = 'mg/dL';
@@ -22,8 +22,11 @@ class AppConstants {
   // Factor estándar de conversión mg/dL <-> mmol/L
   static const double conversionFactor = 18.0182;
 
+  // Meta diaria inicial de agua (ml)
+  static const int defaultDailyWaterGoalMl = 2000;
+
   // Versión de esquema de copia de seguridad JSON
-  static const int backupSchemaVersion = 1;
+  static const int backupSchemaVersion = 2;
 
   // Textos de responsabilidad médica
   static const String medicalDisclaimerShort =
@@ -33,8 +36,8 @@ class AppConstants {
   static const String medicalDisclaimerFull =
       'Aviso importante sobre responsabilidad médica:\n\n'
       '• GlucoControl es exclusivamente una herramienta de apoyo para registrar, '
-      'organizar y consultar mediciones de glucosa.\n'
-      '• Esta aplicación NO diagnostica diabetes ni otras condiciones médicas.\n'
+      'organizar y consultar mediciones de glucosa, presión arterial, peso e hidratación.\n'
+      '• Esta aplicación NO diagnostica diabetes, hipertensión ni otras condiciones médicas.\n'
       '• Esta aplicación NO recomienda dosis de insulina ni cambios en medicamentos.\n'
       '• Esta aplicación NO sustituye la valoración ni el seguimiento de su médico o '
       'profesional de la salud.\n'

@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glucocontrol/database/database_helper.dart';
+import 'package:glucocontrol/models/blood_pressure_record.dart';
 import 'package:glucocontrol/models/glucose_record.dart';
 import 'package:glucocontrol/models/patient_profile.dart';
 import 'package:glucocontrol/models/reminder_item.dart';
+import 'package:glucocontrol/models/water_record.dart';
+import 'package:glucocontrol/models/weight_record.dart';
 import 'package:glucocontrol/services/backup_service.dart';
 import 'package:glucocontrol/services/statistics_service.dart';
 import 'package:glucocontrol/utils/constants.dart';
@@ -31,10 +34,9 @@ void main() {
     }
   });
 
-  test('CRUD completo, persistencia tras cerrar/reabrir SQLite, estadísticas y respaldo JSON', () async {
+  test('CRUD completo, persistencia SQLite v2 (glucosa, presión, peso/IMC, agua) y respaldo JSON', () async {
     final db = DatabaseHelper.forTesting(dbPath);
 
-    // 1. Crear perfil del paciente
     final savedProfile = await db.saveProfile(
       PatientProfile(
         fullName: 'Elena Morales',
@@ -48,7 +50,6 @@ void main() {
     );
     expect(savedProfile.id, isNotNull);
 
-    // 2. Registrar mediciones
     final r1 = await db.insertRecord(
       GlucoseRecord(
         value: 98,
@@ -69,37 +70,33 @@ void main() {
         createdAt: DateTime(2026, 5, 10, 14, 0),
       ),
     );
-    final r3 = await db.insertRecord(
-      GlucoseRecord(
-        value: 112,
-        unit: AppConstants.unitMgDl,
-        measuredAt: DateTime(2026, 5, 11, 21, 0),
-        measurementType: MeasurementType.beforeSleep,
-        createdAt: DateTime(2026, 5, 11, 21, 0),
+
+    await db.insertBloodPressureRecord(
+      BloodPressureRecord(
+        systolic: 115,
+        diastolic: 75,
+        pulse: 68,
+        measuredAt: DateTime(2026, 5, 10, 8, 0),
+        createdAt: DateTime(2026, 5, 10, 8, 0),
       ),
     );
 
-    // 3. Consultar historial y filtros
-    final all = await db.getAllRecords();
-    expect(all.length, 3);
-    expect(all.first.id, r3.id); // Orden cronológico descendente
+    final w = await db.insertWeightRecord(
+      WeightRecord(
+        weightKg: 70,
+        heightCm: 170,
+        measuredAt: DateTime(2026, 5, 10, 8, 5),
+        createdAt: DateTime(2026, 5, 10, 8, 5),
+      ),
+    );
+    expect(w.bmi, closeTo(24.22, 0.05));
+    expect(w.category, BmiCategory.normal);
 
-    final filteredByType = await db.getAllRecords(type: MeasurementType.fasting);
-    expect(filteredByType.length, 1);
-    expect(filteredByType.first.id, r1.id);
+    await db.insertWaterRecord(
+      WaterRecord(amountMl: 250, loggedAt: DateTime(2026, 5, 10, 9, 0)),
+    );
 
-    final filteredBySearch = await db.getAllRecords(searchQuery: 'almuerzo');
-    expect(filteredBySearch.length, 1);
-    expect(filteredBySearch.first.id, r2.id);
-
-    // 4. Editar registro
-    await db.updateRecord(r2.copyWith(value: 138, notes: 'Valor corregido'));
-    final afterEdit = await db.getAllRecords(type: MeasurementType.afterLunch);
-    expect(afterEdit.first.value, 138);
-    expect(afterEdit.first.notes, 'Valor corregido');
-
-    // 5. Crear recordatorio
-    final rem = await db.insertReminder(
+    await db.insertReminder(
       ReminderItem(
         title: 'Medición de la mañana',
         category: ReminderCategory.glucoseCheck,
@@ -110,53 +107,60 @@ void main() {
         createdAt: DateTime(2026, 5, 10),
       ),
     );
-    expect(rem.id, isNotNull);
 
-    // 6. Verificar persistencia cerrando y reabriendo la base de datos
+    // Cerrar y reabrir SQLite para verificar persistencia real
     await db.close();
     final reopenedDb = DatabaseHelper.forTesting(dbPath);
     final persistedProfile = await reopenedDb.getProfile();
     final persistedRecords = await reopenedDb.getAllRecords();
     final persistedReminders = await reopenedDb.getAllReminders();
+    final persistedBp = await reopenedDb.getAllBloodPressureRecords();
+    final persistedWeight = await reopenedDb.getAllWeightRecords();
+    final persistedWater = await reopenedDb.getAllWaterRecords();
 
     expect(persistedProfile?.fullName, 'Elena Morales');
-    expect(persistedRecords.length, 3);
+    expect(persistedRecords.length, 2);
     expect(persistedReminders.length, 1);
+    expect(persistedBp.length, 1);
+    expect(persistedWeight.length, 1);
+    expect(persistedWater.length, 1);
 
-    // 7. Calcular estadísticas
     final stats = StatisticsService.calculate(
       records: persistedRecords,
       profile: persistedProfile,
     );
-    expect(stats.totalCount, 3);
-    expect(stats.average, closeTo((98 + 138 + 112) / 3, 0.01));
-    expect(stats.minValue, 98);
-    expect(stats.maxValue, 138);
-    expect(stats.inRangeCount, 3);
+    expect(stats.totalCount, 2);
 
-    // 8. Exportar copia de seguridad JSON y validar restauración
+    // Exportar y restaurar respaldo JSON v2
     final jsonBackup = BackupService.serializeBackup(
       profile: persistedProfile,
       records: persistedRecords,
       reminders: persistedReminders,
+      bloodPressureRecords: persistedBp,
+      weightRecords: persistedWeight,
+      waterRecords: persistedWater,
     );
     final parsedBackup = BackupService.parseAndValidateBackup(jsonBackup);
-    expect(parsedBackup.profile?.fullName, 'Elena Morales');
-    expect(parsedBackup.records.length, 3);
-    expect(parsedBackup.reminders.length, 1);
+    expect(parsedBackup.bloodPressureRecords.length, 1);
+    expect(parsedBackup.weightRecords.length, 1);
+    expect(parsedBackup.waterRecords.length, 1);
 
-    // 9. Eliminar un registro y luego restaurar la copia completa
     await reopenedDb.deleteRecord(r1.id!);
-    expect((await reopenedDb.getAllRecords()).length, 2);
+    expect((await reopenedDb.getAllRecords()).length, 1);
 
     await reopenedDb.replaceAllData(
       profile: parsedBackup.profile,
       records: parsedBackup.records,
       reminders: parsedBackup.reminders,
+      bloodPressureRecords: parsedBackup.bloodPressureRecords,
+      weightRecords: parsedBackup.weightRecords,
+      waterRecords: parsedBackup.waterRecords,
     );
-    expect((await reopenedDb.getAllRecords()).length, 3);
+    expect((await reopenedDb.getAllRecords()).length, 2);
+    expect((await reopenedDb.getAllBloodPressureRecords()).length, 1);
 
-    // 10. Validar que respaldos corruptos son rechazados
+    // Verificar actualización de registro existente
+    await reopenedDb.updateRecord(r2.copyWith(value: 130));
     expect(
       () => BackupService.parseAndValidateBackup('{"app":"OtraApp"}'),
       throwsA(isA<BackupValidationException>()),

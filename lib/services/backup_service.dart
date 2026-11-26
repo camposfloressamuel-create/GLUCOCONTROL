@@ -5,21 +5,30 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../models/blood_pressure_record.dart';
 import '../models/glucose_record.dart';
 import '../models/patient_profile.dart';
 import '../models/reminder_item.dart';
+import '../models/water_record.dart';
+import '../models/weight_record.dart';
 import '../utils/constants.dart';
 
 class BackupPayload {
   final PatientProfile? profile;
   final List<GlucoseRecord> records;
   final List<ReminderItem> reminders;
+  final List<BloodPressureRecord> bloodPressureRecords;
+  final List<WeightRecord> weightRecords;
+  final List<WaterRecord> waterRecords;
   final DateTime exportedAt;
 
   const BackupPayload({
     required this.profile,
     required this.records,
     required this.reminders,
+    this.bloodPressureRecords = const [],
+    this.weightRecords = const [],
+    this.waterRecords = const [],
     required this.exportedAt,
   });
 }
@@ -38,6 +47,9 @@ class BackupService {
     required PatientProfile? profile,
     required List<GlucoseRecord> records,
     required List<ReminderItem> reminders,
+    List<BloodPressureRecord> bloodPressureRecords = const [],
+    List<WeightRecord> weightRecords = const [],
+    List<WaterRecord> waterRecords = const [],
   }) {
     final payload = {
       'app': AppConstants.appName,
@@ -46,11 +58,15 @@ class BackupService {
       'profile': profile?.toMap(),
       'records': records.map((r) => r.toMap()).toList(),
       'reminders': reminders.map((rem) => rem.toMap()).toList(),
+      'blood_pressure_records':
+          bloodPressureRecords.map((bp) => bp.toMap()).toList(),
+      'weight_records': weightRecords.map((w) => w.toMap()).toList(),
+      'water_records': waterRecords.map((wa) => wa.toMap()).toList(),
     };
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
-  /// Valida y parsea un contenido JSON antes de restaurar la base de datos.
+  /// Valida y parsea un contenido JSON (compatible con v1 y v2) antes de restaurar.
   static BackupPayload parseAndValidateBackup(String jsonString) {
     if (jsonString.trim().isEmpty) {
       throw const BackupValidationException(
@@ -132,8 +148,8 @@ class BackupService {
       records.add(GlucoseRecord.fromMap(item));
     }
 
-    final rawReminders = decoded['reminders'];
     final reminders = <ReminderItem>[];
+    final rawReminders = decoded['reminders'];
     if (rawReminders != null) {
       if (rawReminders is! List) {
         throw const BackupValidationException(
@@ -150,6 +166,36 @@ class BackupService {
       }
     }
 
+    final bpRecords = <BloodPressureRecord>[];
+    final rawBp = decoded['blood_pressure_records'];
+    if (rawBp is List) {
+      for (final item in rawBp) {
+        if (item is Map<String, dynamic>) {
+          bpRecords.add(BloodPressureRecord.fromMap(item));
+        }
+      }
+    }
+
+    final weightRecords = <WeightRecord>[];
+    final rawWeight = decoded['weight_records'];
+    if (rawWeight is List) {
+      for (final item in rawWeight) {
+        if (item is Map<String, dynamic>) {
+          weightRecords.add(WeightRecord.fromMap(item));
+        }
+      }
+    }
+
+    final waterRecords = <WaterRecord>[];
+    final rawWater = decoded['water_records'];
+    if (rawWater is List) {
+      for (final item in rawWater) {
+        if (item is Map<String, dynamic>) {
+          waterRecords.add(WaterRecord.fromMap(item));
+        }
+      }
+    }
+
     final exportedAt = decoded['exported_at'] is String
         ? (DateTime.tryParse(decoded['exported_at'] as String) ?? DateTime.now())
         : DateTime.now();
@@ -158,6 +204,9 @@ class BackupService {
       profile: profile,
       records: records,
       reminders: reminders,
+      bloodPressureRecords: bpRecords,
+      weightRecords: weightRecords,
+      waterRecords: waterRecords,
       exportedAt: exportedAt,
     );
   }
@@ -167,11 +216,17 @@ class BackupService {
     required PatientProfile? profile,
     required List<GlucoseRecord> records,
     required List<ReminderItem> reminders,
+    List<BloodPressureRecord> bloodPressureRecords = const [],
+    List<WeightRecord> weightRecords = const [],
+    List<WaterRecord> waterRecords = const [],
   }) async {
     final jsonContent = serializeBackup(
       profile: profile,
       records: records,
       reminders: reminders,
+      bloodPressureRecords: bloodPressureRecords,
+      weightRecords: weightRecords,
+      waterRecords: waterRecords,
     );
     final dir = await getApplicationDocumentsDirectory();
     final backupsDir = Directory(p.join(dir.path, 'backups'));

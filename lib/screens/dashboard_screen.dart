@@ -11,7 +11,11 @@ import '../widgets/app_logo.dart';
 import '../widgets/glucose_chart.dart';
 import '../widgets/glucose_record_card.dart';
 import '../widgets/medical_disclaimer_banner.dart';
+import 'blood_pressure_screen.dart';
+import 'health_trends_screen.dart';
 import 'reports_screen.dart';
+import 'water_tracker_screen.dart';
+import 'weight_bmi_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   final ValueChanged<int> onNavigateTab;
@@ -35,6 +39,11 @@ class DashboardScreen extends StatelessWidget {
     );
     final recentRecords = provider.records.take(3).toList();
     final greeting = GlucoseConverter.greetingForHour(DateTime.now().hour);
+
+    final latestBp = provider.latestBloodPressure;
+    final latestWeight = provider.latestWeight;
+    final todayWater = provider.todayWaterMl;
+    final waterGoal = provider.dailyWaterGoalMl;
 
     return Scaffold(
       appBar: AppBar(
@@ -92,6 +101,8 @@ class DashboardScreen extends StatelessWidget {
             todayCount: todayCount,
           ),
           const SizedBox(height: 18),
+
+          // Accesos rápidos principales
           Row(
             children: [
               Expanded(
@@ -121,41 +132,125 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 22),
+
+          // Diario de salud integral
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Diario de salud',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.mainText,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HealthTrendsScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Ver tendencias',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _HealthDiaryCard(
+                  icon: Icons.favorite_rounded,
+                  iconColor: const Color(0xFFDC2626),
+                  iconBg: const Color(0xFFFEE2E2),
+                  title: 'Presión arterial',
+                  value: latestBp == null
+                      ? 'Registrar'
+                      : '${latestBp.systolic}/${latestBp.diastolic}',
+                  subtitle:
+                      latestBp == null ? 'mmHg y pulso' : '${latestBp.pulse} BPM',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BloodPressureScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _HealthDiaryCard(
+                  icon: Icons.monitor_weight_rounded,
+                  iconColor: AppColors.secondaryBlue,
+                  iconBg: const Color(0xFFEAF3FC),
+                  title: 'Peso e IMC',
+                  value: latestWeight == null
+                      ? 'Registrar'
+                      : '${latestWeight.weightKg.toStringAsFixed(1)} kg',
+                  subtitle: latestWeight == null
+                      ? 'Control corporal'
+                      : 'IMC ${latestWeight.bmi.toStringAsFixed(1)}',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const WeightBmiScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.history_rounded,
-                  label: 'Historial',
-                  color: AppColors.mainText,
-                  bgColor: AppColors.white,
-                  onTap: () => onNavigateTab(1),
+                child: _HealthDiaryCard(
+                  icon: Icons.local_drink_rounded,
+                  iconColor: AppColors.primaryGreen,
+                  iconBg: AppColors.lightGreen,
+                  title: 'Agua hoy',
+                  value: '$todayWater ml',
+                  subtitle: 'Meta: $waterGoal ml',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const WaterTrackerScreen(),
+                      ),
+                    );
+                  },
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.show_chart_rounded,
-                  label: 'Gráficas',
-                  color: AppColors.mainText,
-                  bgColor: AppColors.white,
-                  onTap: () => onNavigateTab(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.notifications_active_outlined,
-                  label: 'Alertas',
-                  color: AppColors.mainText,
-                  bgColor: AppColors.white,
-                  onTap: () => onNavigateTab(3),
+                child: _HealthDiaryCard(
+                  icon: Icons.insights_rounded,
+                  iconColor: const Color(0xFFD97706),
+                  iconBg: const Color(0xFFFEF3C7),
+                  title: 'Tendencias',
+                  value: 'Resumen',
+                  subtitle: 'Todos tus datos',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const HealthTrendsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
           const SizedBox(height: 22),
+
+          // Gráfica semanal de glucosa
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -166,7 +261,7 @@ class DashboardScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Evolución (últimos 7 días)',
+                        'Evolución glucosa (7 días)',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -196,6 +291,8 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
+
+          // Últimas mediciones
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -264,6 +361,82 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 12),
           const MedicalDisclaimerBanner(),
         ],
+      ),
+    );
+  }
+}
+
+class _HealthDiaryCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String title;
+  final String value;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _HealthDiaryCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.mainText,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.secondaryText,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

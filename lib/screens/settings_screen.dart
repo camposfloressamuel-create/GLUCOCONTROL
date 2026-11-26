@@ -32,6 +32,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         profile: provider.profile,
         records: provider.records,
         reminders: provider.reminders,
+        bloodPressureRecords: provider.bloodPressureRecords,
+        weightRecords: provider.weightRecords,
+        waterRecords: provider.waterRecords,
       );
       if (!mounted) return;
       await Share.shareXFiles(
@@ -66,7 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json'],
+        allowedExtensions: const ['json'],
       );
       if (result == null || result.files.single.path == null) return;
 
@@ -88,7 +91,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(
             'Se encontró una copia de seguridad válida:\n\n'
             '• Paciente: ${payload.profile?.fullName ?? "Sin nombre"}\n'
-            '• Mediciones: ${payload.records.length}\n'
+            '• Mediciones de glucosa: ${payload.records.length}\n'
+            '• Presión arterial: ${payload.bloodPressureRecords.length}\n'
+            '• Peso e IMC: ${payload.weightRecords.length}\n'
             '• Recordatorios: ${payload.reminders.length}\n\n'
             'Al continuar, se sobrescribirá la información actual en este teléfono. ¿Desea restaurar esta copia?',
             style: const TextStyle(fontSize: 16, height: 1.4),
@@ -152,14 +157,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Tarjeta del perfil
           Card(
             child: ListTile(
               contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
+              leading: const CircleAvatar(
                 radius: 26,
                 backgroundColor: AppColors.lightGreen,
-                child: const Icon(
+                child: Icon(
                   Icons.person_rounded,
                   color: AppColors.primaryGreen,
                   size: 30,
@@ -191,8 +195,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Informes PDF
           Card(
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
@@ -222,8 +224,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Copias de seguridad locales
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -272,8 +272,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Seguridad y responsabilidad médica
           Card(
             child: Column(
               children: [

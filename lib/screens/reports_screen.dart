@@ -154,8 +154,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Icon(
                         Icons.picture_as_pdf_rounded,
                         color: AppColors.secondaryBlue,
@@ -210,7 +210,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
             onPressed: _generating
                 ? null
                 : () => _runAction((bytes) async {
-                      await PdfReportService.sharePdf(bytes);
+                      final savedPath =
+                          await PdfReportService.savePdfToDevice(bytes);
+                      if (!mounted) return;
+                      if (savedPath != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Informe PDF guardado en la carpeta seleccionada.',
+                            ),
+                            backgroundColor: AppColors.primaryGreen,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Guardado cancelado.'),
+                          ),
+                        );
+                      }
                     }),
             icon: _generating
                 ? const SizedBox(
@@ -221,27 +239,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       strokeWidth: 2.5,
                     ),
                   )
-                : const Icon(Icons.share_rounded, size: 24),
-            label: const Text('Compartir informe PDF'),
+                : const Icon(Icons.download_rounded, size: 24),
+            label: const Text('Descargar PDF en el dispositivo'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _generating
                 ? null
                 : () => _runAction((bytes) async {
-                      final file = await PdfReportService.savePdfLocally(bytes);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Informe guardado localmente: ${file.path.split('/').last}',
-                          ),
-                          backgroundColor: AppColors.primaryGreen,
-                        ),
-                      );
+                      await PdfReportService.sharePdf(bytes);
                     }),
-            icon: const Icon(Icons.download_rounded, size: 24),
-            label: const Text('Guardar PDF en el dispositivo'),
+            icon: const Icon(Icons.share_rounded, size: 24),
+            label: const Text('Compartir informe PDF'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(

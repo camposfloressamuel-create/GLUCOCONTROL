@@ -1,17 +1,23 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../models/blood_pressure_record.dart';
 import '../models/glucose_record.dart';
 import '../models/patient_profile.dart';
 import '../models/reminder_item.dart';
+import '../models/water_record.dart';
+import '../models/weight_record.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'glucocontrol.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   static const String tableProfile = 'patient_profile';
   static const String tableRecords = 'glucose_records';
   static const String tableReminders = 'reminders';
+  static const String tableBloodPressure = 'blood_pressure_records';
+  static const String tableWeight = 'weight_records';
+  static const String tableWater = 'water_records';
 
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
@@ -37,6 +43,7 @@ class DatabaseHelper {
       dbPath,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -83,6 +90,47 @@ class DatabaseHelper {
         appointment_date TEXT,
         is_enabled INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
+      )
+    ''');
+
+    await _createV2Tables(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createV2Tables(db);
+    }
+  }
+
+  Future<void> _createV2Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableBloodPressure (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        systolic INTEGER NOT NULL,
+        diastolic INTEGER NOT NULL,
+        pulse INTEGER NOT NULL,
+        measured_at TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableWeight (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        weight_kg REAL NOT NULL,
+        height_cm REAL NOT NULL,
+        measured_at TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableWater (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount_ml INTEGER NOT NULL,
+        logged_at TEXT NOT NULL
       )
     ''');
   }
@@ -204,6 +252,74 @@ class DatabaseHelper {
     return results;
   }
 
+  // ===================== PRESIÓN ARTERIAL =====================
+
+  Future<List<BloodPressureRecord>> getAllBloodPressureRecords() async {
+    final db = await database;
+    final rows = await db.query(
+      tableBloodPressure,
+      orderBy: 'measured_at DESC',
+    );
+    return rows.map(BloodPressureRecord.fromMap).toList();
+  }
+
+  Future<BloodPressureRecord> insertBloodPressureRecord(
+    BloodPressureRecord record,
+  ) async {
+    final db = await database;
+    final id = await db.insert(tableBloodPressure, record.toMap());
+    return record.copyWith(id: id);
+  }
+
+  Future<int> deleteBloodPressureRecord(int id) async {
+    final db = await database;
+    return db.delete(tableBloodPressure, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ===================== PESO E IMC =====================
+
+  Future<List<WeightRecord>> getAllWeightRecords() async {
+    final db = await database;
+    final rows = await db.query(
+      tableWeight,
+      orderBy: 'measured_at DESC',
+    );
+    return rows.map(WeightRecord.fromMap).toList();
+  }
+
+  Future<WeightRecord> insertWeightRecord(WeightRecord record) async {
+    final db = await database;
+    final id = await db.insert(tableWeight, record.toMap());
+    return record.copyWith(id: id);
+  }
+
+  Future<int> deleteWeightRecord(int id) async {
+    final db = await database;
+    return db.delete(tableWeight, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ===================== AGUA / HIDRATACIÓN =====================
+
+  Future<List<WaterRecord>> getAllWaterRecords() async {
+    final db = await database;
+    final rows = await db.query(
+      tableWater,
+      orderBy: 'logged_at DESC',
+    );
+    return rows.map(WaterRecord.fromMap).toList();
+  }
+
+  Future<WaterRecord> insertWaterRecord(WaterRecord record) async {
+    final db = await database;
+    final id = await db.insert(tableWater, record.toMap());
+    return record.copyWith(id: id);
+  }
+
+  Future<int> deleteWaterRecord(int id) async {
+    final db = await database;
+    return db.delete(tableWater, where: 'id = ?', whereArgs: [id]);
+  }
+
   // ===================== RECORDATORIOS =====================
 
   Future<List<ReminderItem>> getAllReminders() async {
@@ -246,12 +362,18 @@ class DatabaseHelper {
     required PatientProfile? profile,
     required List<GlucoseRecord> records,
     required List<ReminderItem> reminders,
+    List<BloodPressureRecord> bloodPressureRecords = const [],
+    List<WeightRecord> weightRecords = const [],
+    List<WaterRecord> waterRecords = const [],
   }) async {
     final db = await database;
     await db.transaction((txn) async {
       await txn.delete(tableProfile);
       await txn.delete(tableRecords);
       await txn.delete(tableReminders);
+      await txn.delete(tableBloodPressure);
+      await txn.delete(tableWeight);
+      await txn.delete(tableWater);
 
       if (profile != null) {
         final map = profile.toMap()..remove('id');
@@ -266,6 +388,21 @@ class DatabaseHelper {
       for (final rem in reminders) {
         final map = rem.toMap()..remove('id');
         await txn.insert(tableReminders, map);
+      }
+
+      for (final bp in bloodPressureRecords) {
+        final map = bp.toMap()..remove('id');
+        await txn.insert(tableBloodPressure, map);
+      }
+
+      for (final w in weightRecords) {
+        final map = w.toMap()..remove('id');
+        await txn.insert(tableWeight, map);
+      }
+
+      for (final wa in waterRecords) {
+        final map = wa.toMap()..remove('id');
+        await txn.insert(tableWater, map);
       }
     });
   }
